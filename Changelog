@@ -1,3 +1,6 @@
+2013-11-7 Lispython 3.2.1
+	* Fixed paginator
+
 2013-10-11 Lispython 3.2.0
 	* Changed settings format.
 	* Added models migrations.
