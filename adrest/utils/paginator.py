@@ -38,7 +38,7 @@ class Paginator(object):
         """
         return dict(
             count=self.paginator.count,
-            page=self.page,
+            page=self.page_number,
             num_pages=self.paginator.num_pages,
             next=self.next_page,
             prev=self.previous_page,
@@ -49,7 +49,7 @@ class Paginator(object):
     def page(self):
         """ Get current page.
 
-        :return int: page number
+        :return: page object
 
         """
         if not self._page:
@@ -68,6 +68,14 @@ class Paginator(object):
 
         """
         return self.paginator.count
+
+    @property
+    def page_number(self):
+        """Get page number
+
+        :return: int
+        """
+        return self.page.number if self.page else 1
 
     @property
     def resources(self):
