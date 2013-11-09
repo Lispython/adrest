@@ -16,9 +16,6 @@ __all__ = 'HandlerMixin',
 logger = getLogger('django.request')
 
 
-__all__ = 'HandlerMixin',
-
-
 class Meta:
 
     """ Handler options. Setup parameters for REST implementation.

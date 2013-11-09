@@ -1,4 +1,4 @@
-""" ADRest serializers. """
+""" ADRest transformers. """
 import collections
 import inspect
 from numbers import Number
@@ -6,22 +6,76 @@ from datetime import datetime, date, time
 from decimal import Decimal
 
 from django.db.models import Model, Manager
-from django.utils import simplejson
 from django.utils.encoding import smart_unicode
 
 from .tools import as_tuple
 
 
-class BaseSerializer(object):
+class BaseTransformer(object):
+    """ Abstract class for response transformation
+    """
+    format_type = None
 
-    """ Abstract class for serializers. """
+    def __init__(self, resource, data, request=None):
+        self._resource = resource
+        self._data = data
+        self._request = request
 
-    def __init__(
-            self, scheme=None, options=None, format='django', **model_options):
-        self.scheme = scheme
-        self.format = format
-        self.serializer_options = options or dict()
-        self.model_options = self.init_options(**model_options)
+    @property
+    def resource(self):
+        return self._resource
+
+    def transform(self):
+        """ Start transformation
+        """
+        raise NotImplementedError("You must redefinee transform method")
+
+    @property
+    def value(self):
+        return self._data
+
+
+class SmartTransformer(BaseTransformer):
+    """ Transformer class for simple transformation by meta rules
+
+
+       Dictionary with transformation's options for relations
+
+       * emit_fields -- Set serialized fields by manual
+       * emit_exclude -- Exclude some fields
+       * emit_include -- Include some fields
+       * emit_related -- Options for relations.
+
+       Example:
+
+          class SomeResource(TransformerMixin, View):
+               class Meta:
+                   model = Role
+                   emit_fields = 'pk', 'user', 'custom_field'
+                   emit_include = 'group_count'
+                   emit_exclude = 'password', 'service'
+                   emit_related = dict(
+                       user = dict(
+                               fields = 'username'
+                       )
+                   )
+
+
+    """
+    format_type = 'default'
+
+    def __init__(self, *args, **kwargs):
+        super(SmartTransformer, self).__init__(*args, **kwargs)
+
+        self.options = self.init_options(fields=self.meta_option('fields'),
+                                         include=self.meta_option('include'),
+                                         exclude=self.meta_option('exclude'),
+                                         related=self.meta_option('related'))
+
+    def meta_option(self, name):
+        """Get option from meta
+        """
+        return getattr(self.resource._meta, 'name', None)
 
     @staticmethod
     def init_options(fields=None, include=None, exclude=None, related=None):
@@ -29,9 +83,13 @@ class BaseSerializer(object):
             fields=set(as_tuple(fields)),
             include=set(as_tuple(include)),
             exclude=set(as_tuple(exclude)),
-            related=related or dict(),
+            related=related or {},
         )
         return options
+
+    def transform(self):
+        to_simple = getattr(self.resource, 'to_simple', lambda c, d, s: s)
+        return to_simple(self.value, self.to_simple(self.value, self.options), self)
 
     def to_simple(self, value, **options):  # nolint
         " Simplify object. "
@@ -61,6 +119,7 @@ class BaseSerializer(object):
         if value is None or value is True or value is False:
             return value
 
+        # Used for ``Paginator``
         if hasattr(value, 'to_simple') and not inspect.isclass(value):
             return self.to_simple(
                 value.to_simple(self),
@@ -90,12 +149,7 @@ class BaseSerializer(object):
         options = self.init_options(**options)
         fields, include, exclude, related = options['fields'], options['include'], options['exclude'], options['related'] # nolint
 
-        result = dict(
-            model=smart_unicode(instance._meta),
-            pk=smart_unicode(
-                instance._get_pk_val(), strings_only=True),
-            fields=dict(),
-        )
+        result = {}
 
         m2m_fields = [f.name for f in instance._meta.many_to_many]
         o2m_fields = [f.get_accessor_name()
@@ -108,10 +162,10 @@ class BaseSerializer(object):
 
             # Respect `to_simple__<fname>`
             to_simple = getattr(
-                self.scheme, 'to_simple__{0}'.format(fname), None)
+                self.resource, 'to_simple__{0}'.format(fname), None)
 
             if to_simple:
-                result['fields'][fname] = to_simple(instance, serializer=self)
+                result[fname] = to_simple(instance, transformer=self)
                 continue
 
             related_options = related.get(fname, dict())
@@ -127,72 +181,47 @@ class BaseSerializer(object):
                 if isinstance(value, Manager):
                     value = value.all()
 
-            result['fields'][fname] = self.to_simple(
+            result[fname] = self.to_simple(
                 value, **related_options)
 
-        if self.format != 'django':
-            fields = result['fields']
-            fields['id'] = result['pk']
-            result = fields
 
         return result
 
-    def serialize(self, value):
-        simple = self.to_simple(value, **self.model_options)
-        if self.scheme:
-            to_simple = getattr(self.scheme, 'to_simple', lambda s: s)
-            simple = to_simple(value, simple, serializer=self)
 
-        return simple
+class SmartDjangoTransformer(SmartTransformer):
+    """ Smart transformer for django framework
+    """
 
+    def __init__(self, *args, **kwargs):
+        super(SmartDjangoTransformer, self).__init__(*args, **kwargs)
 
-class JSONSerializer(BaseSerializer):
+    def to_simple_model(self, instance, **options): # nolint
+        """ Make dict structure from ``django.db.models.Model`` intance
 
-    def serialize(self, value):
-        simple = super(JSONSerializer, self).serialize(value)
-        return simplejson.dumps(simple, **self.serializer_options)
+        :param instance: :class:``django.db.models.Model`` instance
+        :param \*\*options: transformation options
+        :return: dict
+        """
+        return {"fields": super(SmartDjangoTransformer, self).to_simple_model(instance, **options),
+                "model": self.get_model_name(instance),
+                "pk":  self.get_pk(instance)}
 
+    def get_model_name(self, instance):
+        """ Get model name to display
 
-class XMLSerializer(BaseSerializer):
+        :param model: :class:``django.db.models.Model`` instance
+        :return: mode name as string
+        """
+        return smart_unicode(instance._meta)
 
-    def serialize(self, value):
-        simple = super(XMLSerializer, self).serialize(value)
-        return ''.join(s for s in self._dumps(simple))
+    def get_pk(self, instance):
+        """Get model pk
 
-    def _dumps(self, value):  # nolint
-        tag = it = None
-
-        if isinstance(value, list):
-            tag = 'items'
-            it = iter(value)
-
-        elif isinstance(value, dict) and 'model' in value:
-            tag = value.get('model').split('.')[1]
-            it = value.iteritems()
-
-        elif isinstance(value, dict):
-            it = value.iteritems()
-
-        elif isinstance(value, tuple):
-            tag = str(value[0])
-            it = (i for i in value[1:])
-
-        else:
-            yield str(value)
-
-        if tag:
-            yield "<%s>" % tag
-
-        if it:
-            try:
-                while True:
-                    v = next(it)
-                    yield ''.join(self._dumps(v))
-            except StopIteration:
-                yield ''
-
-        if tag:
-            yield "</%s>" % tag
+        :param model: :class:``django.db.models.Model`` instance
+        :return: primary key
+        """
+        return smart_unicode(
+            instance._get_pk_val(), strings_only=True)
 
 
 # lint_ignore=W901,R0911,W0212,W0622

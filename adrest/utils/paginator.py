@@ -30,7 +30,7 @@ class Paginator(object):
 
         self._page = None
 
-    def to_simple(self, serializer=None):
+    def to_simple(self, transformer=None):
         """ Prepare to serialization.
 
         :return dict: paginator params

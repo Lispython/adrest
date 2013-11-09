@@ -6,11 +6,11 @@ from time import mktime
 
 from django.db.models.base import ModelBase, Model
 from django.template import RequestContext, loader
+from django.utils import simplejson
 
 from ..utils import UpdatedList
 from .paginator import Paginator
 from .response import SerializedHttpResponse
-from .serializer import JSONSerializer, XMLSerializer
 from .status import HTTP_200_OK
 
 
@@ -114,13 +114,7 @@ class JSONEmitter(BaseEmitter):
         :return string: serializaed JSON
 
         """
-        worker = JSONSerializer(
-            scheme=self.resource,
-            options=self.resource._meta.emit_options,
-            format=self.resource._meta.emit_format,
-            **self.resource._meta.emit_models
-        )
-        return worker.serialize(content)
+        return simplejson.dumps(content, **getattr(self.resource._meta, 'emit_options', {}))
 
 
 class JSONPEmitter(JSONEmitter):
@@ -153,18 +147,56 @@ class XMLEmitter(BaseEmitter):
         :return string: serialized XML
 
         """
-        worker = XMLSerializer(
-            scheme=self.resource,
-            format=self.resource._meta.emit_format,
-            options=self.resource._meta.emit_options,
-            **self.resource._meta.emit_models
-        )
         return self.xmldoc_tpl % (
             'true' if not self.response.error else 'false',
             str(self.resource.api or ''),
             int(mktime(datetime.now().timetuple())),
-            worker.serialize(content)
+            self.dump_content(content)
         )
+
+    def dump_content(self, content):
+        """Convert dict to xml
+
+        :param content: dict
+        """
+        return ''.join(s for s in self._dumps(content))
+
+    def _dumps(self, value):  # nolint
+        tag = it = None
+
+        if isinstance(value, list):
+            tag = 'items'
+            it = iter(value)
+
+        elif isinstance(value, dict) and 'model' in value:
+            tag = value.get('model').split('.')[1]
+            it = value.iteritems()
+
+        elif isinstance(value, dict):
+            it = value.iteritems()
+
+        elif isinstance(value, tuple):
+            tag = str(value[0])
+            it = (i for i in value[1:])
+
+        else:
+            yield str(value)
+
+        if tag:
+            yield "<%s>" % tag
+
+        if it:
+            try:
+                while True:
+                    v = next(it)
+                    yield ''.join(self._dumps(v))
+            except StopIteration:
+                yield ''
+
+        if tag:
+            yield "</%s>" % tag
+
+
 
 
 class TemplateEmitter(BaseEmitter):

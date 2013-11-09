@@ -2,6 +2,7 @@
 from django.template import Library, VariableDoesNotExist
 from django.template.base import TagHelperNode, parse_bits
 from django.template.loader import get_template
+from django.utils import simplejson
 
 
 register = Library()
@@ -52,13 +53,15 @@ def adrest_include(parser, token):
 adrest_include = register.tag(adrest_include)
 
 
-def adrest_jsonify(content, **options):
+def adrest_jsonify(content, resource, request):
     """ Serialize any object to JSON .
 
     :return str: Rendered string.
 
     """
-    from adrest.utils.serializer import JSONSerializer
-    worker = JSONSerializer(**options)
-    return worker.serialize(content)
+    transformer = resource.determine_transformer(request)
+    return simplejson.dumps(transformer(
+        resource, data=content, request=request),
+        **getattr(resource._meta, 'emit_options', {}))
+
 adrest_jsonify = register.simple_tag(adrest_jsonify)
