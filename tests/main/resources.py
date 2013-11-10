@@ -5,6 +5,7 @@ from django.http import HttpResponse
 from adrest.utils.emitter import JSONEmitter
 from adrest.utils.exceptions import HttpError
 from adrest.views import ResourceView
+from adrest.utils.transformers import SmartDjangoTransformer
 
 
 class AuthorResource(ResourceView):
@@ -22,11 +23,13 @@ class BookResource(ResourceView):
         parent = AuthorResource
         model = 'main.book'
 
+        emit_fields = ['status']
 
 class BookPrefixResource(BookResource):
 
     class Meta:
         prefix = 'test'
+        transformers = SmartDjangoTransformer
 
 
 class ArticleResource(ResourceView):
@@ -47,6 +50,7 @@ class OtherResource(ResourceView):
 
     class Meta:
         parent = BookResource
+        transformers = SmartDjangoTransformer
 
     def get(self, request, **kwargs):
         return True

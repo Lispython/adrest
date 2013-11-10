@@ -105,14 +105,12 @@ class RPCResource(ResourceView):
                     raise AssertionError("Invalid RPC Call.")
 
             if 'method' not in payload:
+
                 raise AssertionError("Invalid RPC Call.")
             return self.rpc_call(request, **payload)
 
         except Exception, e:
-            return SerializedHttpResponse(
-                dict(error=dict(message=str(e))),
-                error=True
-            )
+            return dict(error=dict(message=str(e)))
 
     def rpc_call(self, request, method=None, params=None, **kwargs):
         """ Call a RPC method.

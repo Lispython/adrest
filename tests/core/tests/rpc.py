@@ -10,6 +10,7 @@ class AutoJSONRPCTest(API.testCase):
         self.assertEqual(uri, '/pirates/rpc')
 
         response = self.get_resource('autojsonrpc')
+
         self.assertContains(response, 'Invalid RPC Call.')
 
 # lint_ignore=C0110

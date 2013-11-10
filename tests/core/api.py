@@ -1,7 +1,7 @@
 """ Simple API for tests. """
 from adrest.views import ResourceView
 from adrest.api import Api
-
+from adrest.utils.transformers import SmartDjangoTransformer
 
 api = Api(api_rpc=True)
 
@@ -14,7 +14,11 @@ class PirateResource(ResourceView):
     class Meta:
         allowed_methods = 'get', 'POST', 'pUt', 'delete', 'Patch'
         model = 'core.pirate'
+        transformers = SmartDjangoTransformer
 
+
+    def put(self,*args,**kwargs):
+        return super(PirateResource, self).put(*args, **kwargs)
 
 @api.register
 class BoatResource(ResourceView):
@@ -25,6 +29,7 @@ class BoatResource(ResourceView):
         allowed_methods = 'get', 'post', 'put', 'delete'
         model = 'core.boat'
         parent = PirateResource
+        transformers = SmartDjangoTransformer
 
 
 api2 = Api('1.0.0')

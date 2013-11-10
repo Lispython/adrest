@@ -45,6 +45,7 @@ settings.configure(
 from django.core.management import call_command
 call_command('syncdb', interactive=False)
 
+
 from .core.tests   import *
 from .main.tests   import *
 from .rpc.tests    import *

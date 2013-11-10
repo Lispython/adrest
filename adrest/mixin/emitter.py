@@ -45,71 +45,12 @@ class Meta:
     #:
     emit_options = None
 
-    #: Dictionary with emitter's options for relations
-    #:
-    #: * emit_models['fields'] -- Set serialized fields by manual
-    #: * emit_models['exclude'] -- Exclude some fields
-    #: * emit_models['include'] -- Include some fields
-    #: * emit_models['related'] -- Options for relations.
-    #:
-    #: Example: ::
-    #:
-    #:     class SomeResource(EmitterMixin, View):
-    #:         class Meta:
-    #:             model = Role
-    #:             emit_models = dict(
-    #:                  include = 'group_count',
-    #:                  exclude = ['password', 'service'],
-    #:                  related = dict(
-    #:                      user = dict(
-    #:                          fields = 'username'
-    #:                      )
-    #:                  )
-    #:
-    #:              )
-
-    #: You can use a shortcuts for `emit_models` option, as is `emit_fields` or
-    #: `emit_include`. That same as bellow::
-    #:
-    #:     class SomeResource(EmitterMixin, View):
-    #:         class Meta:
-    #:             model = Role
-    #:             emit_include = 'group_count'
-    #:             emit_exclude = 'password', 'service'
-    #:             emit_related = dict(
-    #:                 user = dict(
-    #:                         fields = 'username'
-    #:                 )
-    #:             )
-    emit_models = None
-
     #: Define template for template-based emitters by manualy
     #: Otherwise template name will be generated from resource name
     #: (or resource.Meta.model)
     emit_template = None
 
-    #: Serialization format. Set 'django' for django like view:
 
-    #: ::
-    #:
-    #:     {
-    #:         'pk': ...,
-    #:         'model': ...,
-    #:         'fields': {
-    #:             'name': ...,
-    #:             ...
-    #:         }
-    #:     }
-    #:
-    #: Or set 'simple' for simpliest serialization:
-    #: ::
-    #:
-    #:     {
-    #:         'id': ...,
-    #:         'name': ...,
-    #:     }
-    #:
-    emit_format = 'django'
 
 
 class EmitterMeta(MixinBaseMeta):
@@ -132,22 +73,6 @@ class EmitterMeta(MixinBaseMeta):
                     "Emitter should be subclass of "
                     "`adrest.utils.emitter.BaseEmitter`"
                 )
-
-        if cls._meta.emit_models is None:
-            cls._meta.emit_models = dict()
-
-        if cls._meta.emit_include:
-            cls._meta.emit_models['include'] = cls._meta.emit_include
-
-        if cls._meta.emit_exclude:
-            cls._meta.emit_models['exclude'] = cls._meta.emit_exclude
-
-        if cls._meta.emit_fields:
-            cls._meta.emit_models['fields'] = cls._meta.emit_fields
-
-        if cls._meta.emit_related:
-            cls._meta.emit_models['related'] = cls._meta.emit_related
-
         return cls
 
 
@@ -185,9 +110,11 @@ class EmitterMixin(object):
         :return response: Instance of django.http.Response
 
         """
+        data = self.transform(content, request=request)
+
         # Get emitter for request
         emitter = emitter or self.determine_emitter(request)
-        emitter = emitter(self, request=request, response=content)
+        emitter = emitter(self, request=request, response=data)
 
         # Serialize the response content
         response = emitter.emit()
@@ -208,28 +135,6 @@ class EmitterMixin(object):
 
         return response
 
-    @staticmethod
-    def to_simple(content, simple, serializer=None):
-        """ Abstract method for modification a structure before serialization.
-
-        :param content: response from called method
-        :param simple: structure is prepared to serialization
-        :param serializer: current serializer
-
-        :return object: structure for serialization
-
-        ::
-
-            class SomeResource(ResourceView):
-                def get(self, request, **resources):
-                    return dict(true=False)
-
-                def to_simple(self, content, simple, serializer):
-                    simple['true'] = True
-                    return simple
-
-        """
-        return simple
 
     @classmethod
     def determine_emitter(cls, request):

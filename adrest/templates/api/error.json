@@ -1,1 +1,1 @@
-{% adrest_jsonify content %}
+{% adrest_jsonify content resource request %}
