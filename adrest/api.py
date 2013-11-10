@@ -56,7 +56,11 @@ Use `api_rpc` param. ::
 """
 import logging
 
-from django.conf.urls.defaults import patterns
+try:
+    from django.conf.urls import patterns
+except ImportError:
+    from django.conf.urls.defaults import patterns
+
 from django.dispatch import Signal
 from django.http import HttpRequest
 
