@@ -15,6 +15,7 @@ from .models import Author, Book
 from .resources import (AuthorResource, BookPrefixResource,
                         ArticleResource, SomeOtherResource, BookResource)
 from adrest.mixin.emitter import EmitterMixin
+from adrest.mixin.transformer import TransformerMixin
 from adrest.models import Access
 from adrest.tests.utils import AdrestTestCase
 from adrest.utils import emitter, parser
@@ -35,12 +36,12 @@ class MixinTest(TestCase):
                 response = HttpResponse(content)
                 return response
 
+            def transform(self, content, request=None):
+                return content
+
         test = Test()
         response = test.dispatch(request)
         self.assertContains(response, 'test')
-
-        content = emitter.JSONSerializer().serialize([1, Decimal('3.4'), None])
-        self.assertTrue('3.' in content and 'null' in content)
 
 
 class MetaTest(TestCase):
@@ -164,6 +165,7 @@ class AdrestTest(AdrestTestCase):
 
         # Do not write to access log
         response = self.get_resource('csv')
+
         self.assertEquals(response['Content-Type'], 'text/csv')
         access = Access.objects.filter(uri=response.request['PATH_INFO'])
         self.assertEquals(access.count(), 1)
@@ -206,6 +208,7 @@ class ResourceTest(AdrestTestCase):
         response = self.post_resource('author', data=dict(
             name="new author",
             user=User.objects.create(username="new user").pk))
+
         self.assertContains(response, 'new author')
 
         response = self.post_resource('author', data=dict(name="author 22"))
@@ -255,6 +258,7 @@ class ResourceTest(AdrestTestCase):
             status=2,
             author=self.author.pk))
         self.assertContains(response, '<price>0</price>')
+
         self.assertContains(
             response,
             '<json>{"fields": {"status": 2}, "model": "main.book", "pk": 149}</json>')  # nolint
@@ -334,8 +338,10 @@ class ResourceTest(AdrestTestCase):
     def test_custom(self):
         uri = self.reverse('book')
         response = self.client.get(uri)
+
         self.assertContains(
             response, 'count="%s"' % Book.objects.all().count())
+
         book = Book.objects.create(author=self.author, title="book", status=1)
         response = self.client.get(uri)
         self.assertContains(
@@ -366,6 +372,7 @@ class ResourceTest(AdrestTestCase):
 
     def test_some_other(self):
         response = self.get_resource('test')
+
         self.assertContains(response, 'count="3"')
         self.assertContains(response, '<someother>1</someother>')
         self.assertContains(response, '<method>GET</method>')

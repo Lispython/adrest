@@ -8,7 +8,7 @@ from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import View
 
-from .mixin import auth, emitter, handler, parser, throttle
+from .mixin import auth, emitter, handler, parser, throttle, transformer
 from .settings import ADREST_CONFIG
 from .signals import api_request_started, api_request_finished
 from .utils import status
@@ -26,8 +26,9 @@ LOG_HANDLERS = import_functions(ADREST_CONFIG['LOG_HANDLERS'])
 
 
 class ResourceMetaClass(
-    handler.HandlerMeta, throttle.ThrottleMeta, emitter.EmitterMeta,
-        parser.ParserMeta, auth.AuthMeta):
+    handler.HandlerMeta, throttle.ThrottleMeta,
+    transformer.TransformerMeta, emitter.EmitterMeta,
+    parser.ParserMeta, auth.AuthMeta):
 
     """ MetaClass for ResourceView. Create meta options. """
 
@@ -56,8 +57,8 @@ class ResourceMetaClass(
 
 
 class ResourceView(
-    handler.HandlerMixin, throttle.ThrottleMixin, emitter.EmitterMixin,
-        parser.ParserMixin, auth.AuthMixin, View):
+    handler.HandlerMixin, throttle.ThrottleMixin, transformer.TransformerMixin,
+    emitter.EmitterMixin, parser.ParserMixin, auth.AuthMixin, View):
 
     """ REST Resource. """
 
@@ -140,9 +141,10 @@ class ResourceView(
                 # Check rights for resources with this method
                 self.check_rights(resources, request=request)
 
+            # Return ``HttpResponse``, raise error or object
             response = self.handle_request(request, **resources)
 
-            # Serialize response
+            # Serialize and apply emitter by content type
             response = self.emit(response, request=request)
 
         except Exception as e:
@@ -212,6 +214,7 @@ class ResourceView(
         :return response: Http response
 
         """
+
         if isinstance(e, HttpError):
             response = SerializedHttpResponse(e.content, status=e.status)
             return self.emit(
@@ -253,7 +256,6 @@ class ResourceView(
 
         return url(url_regex, cls.as_view(api=api), name=url_name)
 
-
     @staticmethod
     def notify_errors(request, response):
         """Process response errors
@@ -280,7 +282,6 @@ class ResourceView(
 
         for handler in LOG_HANDLERS:
             handler(self, request, response, **kwargs)
-
 
 
 # pymode:lint_ignore=E1120,W0703,W0212

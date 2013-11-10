@@ -63,7 +63,7 @@ def runtests(*test_args):
                                        'tests.main.tests',
                                        'tests.rpc.tests'])
 
-
     sys.exit(failures)
+
 
 # lint_ignore=W0614,W0401,E272

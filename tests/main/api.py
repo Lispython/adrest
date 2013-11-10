@@ -5,6 +5,7 @@ from adrest.api import Api
 from adrest.utils.auth import AnonimousAuthenticator, AccessKeyAuthenticator, \
     UserAuthenticator
 from adrest.utils.emitter import XMLTemplateEmitter, JSONEmitter, BSONEmitter
+from adrest.utils.transformers import SmartDjangoTransformer, BaseTransformer
 from adrest.utils.parser import BSONParser
 from adrest.utils.throttle import CacheThrottle
 
@@ -15,15 +16,18 @@ class CustomUserAuth(UserAuthenticator):
 
 API = Api(
     version=(1, 0, 0), emitters=(XMLTemplateEmitter, JSONEmitter),
-    throttle=CacheThrottle, api_prefix='main')
+    throttle=CacheThrottle, api_prefix='main',
+    transformers=SmartDjangoTransformer)
 
 API.register(AuthorResource,
-             authenticators=(CustomUserAuth, AnonimousAuthenticator))
-API.register(BookPrefixResource)
-API.register(CustomResource)
-API.register(ArticleResource, authenticators=AccessKeyAuthenticator)
-API.register(SomeOtherResource, url_name='test', url_regex='test/mem/$')
+             authenticators=(CustomUserAuth, AnonimousAuthenticator),
+             transformers=BaseTransformer)
+API.register(BookPrefixResource, transformers=BaseTransformer)
+API.register(CustomResource, transformers=BaseTransformer)
+API.register(ArticleResource, authenticators=AccessKeyAuthenticator, transformers=BaseTransformer)
+API.register(SomeOtherResource, url_name='test', url_regex='test/mem/$',
+             transformers=BaseTransformer)
 API.register(BSONResource, parsers=(BSONParser,), emitters=(BSONEmitter,))
-API.register(CSVResource)
+API.register(CSVResource, transformers=BaseTransformer)
 
 # lint_ignore=C

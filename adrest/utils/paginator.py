@@ -30,7 +30,7 @@ class Paginator(object):
 
         self._page = None
 
-    def to_simple(self, serializer=None):
+    def to_simple(self, transformer=None):
         """ Prepare to serialization.
 
         :return dict: paginator params
@@ -59,6 +59,14 @@ class Paginator(object):
             except InvalidPage:
                 raise HttpError("Invalid page", status=HTTP_400_BAD_REQUEST)
         return self._page
+
+    @property
+    def page_number(self):
+        """Get page number
+
+        :return: int
+        """
+        return self.page.number if self.page else 1
 
     @property
     def count(self):
