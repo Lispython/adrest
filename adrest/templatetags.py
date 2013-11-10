@@ -52,16 +52,18 @@ def adrest_include(parser, token):
     return AdrestInclusionNode(False, args, kwargs)
 adrest_include = register.tag(adrest_include)
 
-
-def adrest_jsonify(content, resource, request):
+from adrest.utils.transformers import SmartDjangoTransformer
+def adrest_jsonify(content, resource, request=None, **kwargs):
     """ Serialize any object to JSON .
 
     :return str: Rendered string.
 
     """
-    transformer = resource.determine_transformer(request)
+
+    transformer = SmartDjangoTransformer
+
     return simplejson.dumps(transformer(
-        resource, data=content, request=request),
-        **getattr(resource._meta, 'emit_options', {}))
+        resource, data=content, request=request).transform(),
+        **(getattr(resource._meta, 'emit_options', {}) or {}))
 
 adrest_jsonify = register.simple_tag(adrest_jsonify)

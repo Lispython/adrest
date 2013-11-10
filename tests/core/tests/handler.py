@@ -64,17 +64,19 @@ class CoreHandlerTest(API.testCase):
         ))
         self.assertContains(response, '"name": "John"')
 
-        john = response.response
-        response = self.put_resource('pirate', pirate=john, data=dict(
+
+        john_pk = response.response['pk']
+        response = self.put_resource('pirate', pirate=john_pk, data=dict(
             name='Billy'
         ))
-        self.assertContains(response, '"name": "Billy"')
-        billy = response.response
-        self.assertEqual(john, billy)
 
-        response = self.delete_resource('pirate', pirate=billy)
+        self.assertContains(response, '"name": "Billy"')
+        billy_pk = response.response['pk']
+        self.assertEqual(john_pk, billy_pk)
+
+        response = self.delete_resource('pirate', pirate=billy_pk)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(type(billy).objects.filter(name='Billy').count(), 0)
+        self.assertEqual(pirate.__class__.objects.filter(name='Billy').count(), 0)
 
         response = self.patch_resource('pirate', data=dict(
             pirate=[1, 2],
@@ -83,8 +85,8 @@ class CoreHandlerTest(API.testCase):
         self.assertEqual(len(response.response), 2)
 
         for pirate in response.response:
-            self.assertEqual(pirate.name, 'Tom')
-            self.assertTrue(pirate.pk in [1, 2])
+            self.assertEqual(pirate['fields']['name'], 'Tom')
+            self.assertTrue(pirate['pk'] in [1, 2])
 
     def test_mixin(self):
 
@@ -112,12 +114,14 @@ class CoreHandlerTest(API.testCase):
 
     def test_resources(self):
         pirates = mixer.cycle(2).blend('pirate', character='evil')
+
         response = self.put_resource(
             'pirate', data=dict(
                 pirate=[p.pk for p in pirates],
                 character='good',
             )
         )
+
         for p in response.json:
             self.assertEqual(p['fields']['character'], 'good')
 

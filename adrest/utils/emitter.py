@@ -114,7 +114,7 @@ class JSONEmitter(BaseEmitter):
         :return string: serializaed JSON
 
         """
-        return simplejson.dumps(content, **getattr(self.resource._meta, 'emit_options', {}))
+        return simplejson.dumps(content, **(getattr(self.resource._meta, 'emit_options', {}) or {}))
 
 
 class JSONPEmitter(JSONEmitter):
@@ -209,6 +209,7 @@ class TemplateEmitter(BaseEmitter):
         :return string: rendered content
 
         """
+
         if self.response.error:
             template_name = op.join('api', 'error.%s' % self.format)
         else:
@@ -228,8 +229,8 @@ class TemplateEmitter(BaseEmitter):
         :return string: remplate path
 
         """
-
-        if isinstance(content, Paginator):
+        if (isinstance(content, dict) and 'resources' in content and \
+            'num_pages' in content) or isinstance(content, Paginator):
             return op.join('api', 'paginator.%s' % self.format)
 
         if isinstance(content, UpdatedList):

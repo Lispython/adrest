@@ -44,9 +44,9 @@ class CoreTransformerTest(AdrestTestCase):
         data = {"Hello": "world"}
         transformer = BaseTransformer(resource, data)
 
-        self.assertRaises(NotImplementedError, transformer.transform)
         self.assertEqual(transformer.resource, resource)
         self.assertEqual(transformer.value, data)
+        self.assertEqual(transformer.transform(), data)
 
     def test_smart_transformer(self):
 
@@ -70,14 +70,22 @@ class CoreTransformerTest(AdrestTestCase):
         transformer = SmartTransformer(resource, data)
 
         result = transformer.transform()
-        self.assertEqual(result, data)
+        self.assertEqual(result, dict(
+            string_=u'test',
+            unicode_=u'test',
+            datetime_='2007-01-01T00:00:00',
+            odict_=dict(value=1),
+            dict_=dict(
+                list_=[1, 2.35, 3.0, False]
+            )
+        ))
 
-        self.assertRaises(NotImplementedError, transformer.transform)
         self.assertEqual(transformer.resource, resource)
         self.assertEqual(transformer.value, data)
 
     def test_django_transformer(self):
-        from adrest.utils.transformers import DjangoSmartTransformer
+        from adrest.utils.transformers import SmartDjangoTransformer
+
         class Resource(View, TransformerMixin):
 
             class Meta:
@@ -97,7 +105,7 @@ class CoreTransformerTest(AdrestTestCase):
             mixer.blend('core.boat', pirate=pirate),
             28, 'string']
 
-        transformer = DjangoSmartTransformer(resource, data)
+        transformer = SmartDjangoTransformer(resource, data)
         self.assertEqual(transformer.options['exclude'], set(['fake']))
         result = transformer.transform()
 
@@ -118,7 +126,7 @@ class CoreTransformerTest(AdrestTestCase):
 
         resource = Resource()
 
-        transformer = DjangoSmartTransformer(resource, data)
+        transformer = SmartDjangoTransformer(resource, pirate)
         self.assertEqual(transformer.options['include'], set(['boat_set']))
         result = transformer.transform()
 
@@ -135,41 +143,5 @@ class CoreTransformerTest(AdrestTestCase):
         self.assertEqual(len(list(result['fields']['boat_set'])), 2)
 
 
-    def test_to_simple(self):
-        """ Test resource's to simple method.
-
-        :return :
-
-        """
-
-        pirates = mixer.cycle(2).blend('core.pirate')
-
-        class Resource(View, TransformerMixin):
-
-            class Meta:
-                model = 'core.pirate'
-
-            def to_simple(self, content, simple, transformer=None):
-
-                return simple + ['HeyHey!']
-
-        resource = Resource()
-        response = resource.emit(pirates)
-        self.assertTrue('HeyHey!' in response.content)
-
-        class Resource(View, EmitterMixin):
-
-            class Meta:
-                model = 'core.pirate'
-
-            @staticmethod
-            def to_simple__name(pirate, transformer=None):
-
-                return 'Evil ' + pirate.name
-
-        resource = Resource()
-        pirate = pirates[0]
-        response = resource.emit(pirate)
-        self.assertTrue('Evil ' + pirate.name in response.content)
 
 # lint_ignore=W0212,E0102,C0110

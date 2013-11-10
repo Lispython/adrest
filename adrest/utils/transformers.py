@@ -5,6 +5,7 @@ from numbers import Number
 from datetime import datetime, date, time
 from decimal import Decimal
 
+from django.http import HttpResponse
 from django.db.models import Model, Manager
 from django.utils.encoding import smart_unicode
 
@@ -28,7 +29,7 @@ class BaseTransformer(object):
     def transform(self):
         """ Start transformation
         """
-        raise NotImplementedError("You must redefinee transform method")
+        return self.value
 
     @property
     def value(self):
@@ -64,18 +65,19 @@ class SmartTransformer(BaseTransformer):
     """
     format_type = 'default'
 
-    def __init__(self, *args, **kwargs):
-        super(SmartTransformer, self).__init__(*args, **kwargs)
-
-        self.options = self.init_options(fields=self.meta_option('fields'),
-                                         include=self.meta_option('include'),
-                                         exclude=self.meta_option('exclude'),
-                                         related=self.meta_option('related'))
+    def __init__(self, resource, data, request=None):
+        if isinstance(data, HttpResponse):
+            data = data.content
+        super(SmartTransformer, self).__init__(resource, data, request)
+        self.options = self.init_options(fields=self.meta_option('emit_fields'),
+                                         include=self.meta_option('emit_include'),
+                                         exclude=self.meta_option('emit_exclude'),
+                                         related=self.meta_option('emit_related'))
 
     def meta_option(self, name):
         """Get option from meta
         """
-        return getattr(self.resource._meta, 'name', None)
+        return getattr(self.resource._meta, name, None)
 
     @staticmethod
     def init_options(fields=None, include=None, exclude=None, related=None):
@@ -88,8 +90,9 @@ class SmartTransformer(BaseTransformer):
         return options
 
     def transform(self):
-        to_simple = getattr(self.resource, 'to_simple', lambda c, d, s: s)
-        return to_simple(self.value, self.to_simple(self.value, self.options), self)
+        to_simple = getattr(self.resource, 'to_simple', lambda content, data, transformer: data)
+
+        return to_simple(self.value, self.to_simple(self.value, **self.options), self)
 
     def to_simple(self, value, **options):  # nolint
         " Simplify object. "
@@ -169,6 +172,7 @@ class SmartTransformer(BaseTransformer):
                 continue
 
             related_options = related.get(fname, dict())
+
             if related_options:
                 related_options = self.init_options(**related_options)
 

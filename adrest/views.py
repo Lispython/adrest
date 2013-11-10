@@ -24,7 +24,8 @@ __all__ = 'ResourceView',
 
 
 class ResourceMetaClass(
-    handler.HandlerMeta, throttle.ThrottleMeta, transformer.TransformerMeta, emitter.EmitterMeta,
+    handler.HandlerMeta, throttle.ThrottleMeta,
+    transformer.TransformerMeta, emitter.EmitterMeta,
     parser.ParserMeta, auth.AuthMeta):
 
     """ MetaClass for ResourceView. Create meta options. """
@@ -206,6 +207,7 @@ class ResourceView(
         :return response: Http response
 
         """
+
         if isinstance(e, HttpError):
             response = SerializedHttpResponse(e.content, status=e.status)
             return self.emit(
@@ -246,7 +248,6 @@ class ResourceView(
         url_name = '%s%s' % (name_prefix, cls._meta.url_name)
 
         return url(url_regex, cls.as_view(api=api), name=url_name)
-
 
 
 # pymode:lint_ignore=E1120,W0703,W0212

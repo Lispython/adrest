@@ -1,10 +1,7 @@
 """ ADRest transformation support. """
-import mimeparse
-from django.http import HttpResponse
 
 from ..utils.transformers import SmartTransformer, BaseTransformer
 from ..utils.meta import MixinBaseMeta
-from ..utils.paginator import Paginator
 from ..utils.tools import as_tuple
 
 
@@ -68,7 +65,6 @@ class TransformerMixin(object):
         transformer = self.determine_transformer(request)
         return transformer(self, data=content, request=request).transform()
 
-
     def determine_transformer(self, request=None):
         """ Get tranformer for request
 
@@ -78,17 +74,17 @@ class TransformerMixin(object):
         if not request:
             return default_transformer
 
-        return self._meta.transformers_dict(
+        return self._meta.transformers_dict.get(
             request.META.get('HTTP_X_TRANSFORMER', 'default'),
             default_transformer)
 
 
     @staticmethod
-    def to_simple(content, simple, transformer=None):
+    def to_simple(content, data, transformer=None):
         """ Abstract method for modification a structure before serialization.
 
         :param content: response from called method
-        :param simple: structure is prepared to serialization
+        :param data: structure is prepared to serialization
         :param transformer: current serializer
 
         :return object: structure for serialization
@@ -99,12 +95,12 @@ class TransformerMixin(object):
                 def get(self, request, **resources):
                     return dict(true=False)
 
-                def to_simple(self, content, simple, serializer):
+                def to_simple(self, content, simple, transformer):
                     simple['true'] = True
                     return simple
 
         """
-        return simple
+        return data
 
 
 

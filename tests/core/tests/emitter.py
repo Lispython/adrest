@@ -3,7 +3,8 @@
 from django.views.generic import View
 
 from ..api import api as API
-from adrest.mixin import EmitterMixin
+from adrest.mixin import EmitterMixin, TransformerMixin
+from adrest.utils.transformers import SmartTransformer
 from adrest.tests import AdrestTestCase
 from mixer.backend.django import mixer
 
@@ -17,10 +18,11 @@ class CoreEmitterTest(AdrestTestCase):
     def test_meta(self):
         """ Test a meta attribute generation. """
 
-        class Resource(View, EmitterMixin):
+        class Resource(EmitterMixin, View):
 
             class Meta:
                 model = 'core.pirate'
+
 
         self.assertTrue(Resource._meta)
         self.assertTrue(Resource._meta.emitters)
@@ -43,6 +45,9 @@ class CoreEmitterTest(AdrestTestCase):
 
                 return simple + ['HeyHey!']
 
+            def transform(self, content, request=None):
+                return SmartTransformer(self, content, request).transform()
+
         resource = Resource()
         response = resource.emit(pirates)
         self.assertTrue('HeyHey!' in response.content)
@@ -53,12 +58,16 @@ class CoreEmitterTest(AdrestTestCase):
                 model = 'core.pirate'
 
             @staticmethod
-            def to_simple__name(pirate, serializer=None):
+            def to_simple__name(pirate, transformer=None):
 
                 return 'Evil ' + pirate.name
 
+            def transform(self, content, request=None):
+                return SmartTransformer(self, content, request).transform()
+
         resource = Resource()
         pirate = pirates[0]
+
         response = resource.emit(pirate)
         self.assertTrue('Evil ' + pirate.name in response.content)
 
