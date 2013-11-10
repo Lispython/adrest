@@ -2,7 +2,11 @@
 
 from logging import getLogger
 
-from django.conf.urls.defaults import url
+try:
+    from django.conf.urls import patterns
+except ImportError:
+    from django.conf.urls.defaults import patterns
+
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
