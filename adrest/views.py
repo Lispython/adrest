@@ -3,9 +3,9 @@
 from logging import getLogger
 
 try:
-    from django.conf.urls import patterns
+    from django.conf.urls import url
 except ImportError:
-    from django.conf.urls.defaults import patterns
+    from django.conf.urls.defaults import url
 
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse

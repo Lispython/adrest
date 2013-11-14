@@ -5,7 +5,7 @@
     :copyright: 2013 by Kirill Klenov.
     :license: BSD, see LICENSE for more details.
 """
-version_info = (3, 3, 3)
+version_info = (3, 3, 4)
 
 __version__ = version = '.'.join(map(str, version_info))
 __project__ = PROJECT = __name__
