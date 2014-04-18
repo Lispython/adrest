@@ -141,6 +141,7 @@ class AdrestTest(AdrestTestCase):
         self.assertContains(response, 'false', status_code=405)
 
         response = self.client.head(uri)
+
         self.assertEqual(response.status_code, 200)
 
     def test_owners_checking(self):
@@ -442,11 +443,14 @@ class AdrestMapTest(TestCase):
     def test_methods(self):
         uri = reverse("main-%s-map" % str(api))
         self.assertEqual(uri, "/%s/map" % api)
+
         response = self.client.get(uri)
+
         self.assertContains(response, 'API')
         self.assertContains(response, 'nickname')
 
         response = self.client.get(uri, HTTP_ACCEPT="application/json")
+
         self.assertContains(response, '"price", {"required": false')
 
 

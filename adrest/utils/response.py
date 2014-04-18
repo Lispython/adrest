@@ -3,6 +3,33 @@ from django.http import HttpResponse
 from .status import HTTP_200_OK
 
 
+class DirtyHttpResponse(object):
+
+    def __init__(self, data, status_code=None, content_type=None):
+        self.data = data
+        self.status_code = status_code
+        self.content_type = content_type
+
+    def __repr__(self):
+        return "<DirtyHttpResponse %s>" % self.status_code
+
+    @property
+    def content(self):
+        return self.data
+
+    def to_simple(self, transformer, **options):
+        """
+        :param transformer: data transformator
+        :return: response unserialized content
+        """
+        return self.content
+
+    @property
+    def error(self):
+        return self.status_code != HTTP_200_OK
+
+
+
 class SerializedMeta(type):
 
     def __call__(cls, content, *args, **kwargs):
@@ -29,7 +56,6 @@ class SerializedHttpResponse(HttpResponse): # nolint
         """
             Save original response.
         """
-        self.response = content
         self._error = error
         self._content_type = content_type
 

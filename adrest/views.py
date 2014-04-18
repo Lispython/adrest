@@ -17,7 +17,7 @@ from .settings import ADREST_CONFIG
 from .signals import api_request_started, api_request_finished
 from .utils import status
 from .utils.exceptions import HttpError, FormError
-from .utils.response import SerializedHttpResponse
+from .utils.response import SerializedHttpResponse, DirtyHttpResponse
 from .utils.tools import as_tuple, gen_url_name, gen_url_regex, fix_request, import_functions
 
 logger = getLogger('django.request')
@@ -220,7 +220,7 @@ class ResourceView(
         """
 
         if isinstance(e, HttpError):
-            response = SerializedHttpResponse(e.content, status=e.status)
+            response = DirtyHttpResponse(e.content, status_code=e.status)
             return self.emit(
                 response, request=request, emitter=e.emitter)
 
@@ -231,8 +231,8 @@ class ResourceView(
             if isinstance(e, FormError):
                 content = e.form.errors
 
-            response = SerializedHttpResponse(
-                content, status=status.HTTP_400_BAD_REQUEST)
+            response = DirtyHttpResponse(
+                content, status_code=status.HTTP_400_BAD_REQUEST)
 
             return self.emit(response, request=request)
 

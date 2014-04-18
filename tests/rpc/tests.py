@@ -22,6 +22,7 @@ class RPCTestCase(AdrestTestCase):
     def test_base_rpc(self):
 
         response = self.get_resource('rpc2', method='options')
+
         self.assertEqual(response.content, 'OK')
 
         # POST args
@@ -32,6 +33,7 @@ class RPCTestCase(AdrestTestCase):
                 method='method1',
                 params=['test'],
             ))
+
         self.assertEqual(response.content, '"Hello test"')
 
         # POST kwargs
@@ -129,6 +131,7 @@ class RPCTestCase(AdrestTestCase):
             rpc=dict(
                 headers=dict(Authorization=111),
                 method='root.get'))
+
         self.assertContains(response, 'test_root')
 
         response = self.rpc(
@@ -136,6 +139,8 @@ class RPCTestCase(AdrestTestCase):
             rpc=dict(
                 params=dict(root=self.root1.pk),
                 method='root-child.get'))
+
+        #import ipdb; ipdb.set_trace()
         self.assertContains(response, '"count": 10')
         self.assertContains(response, 'test_child1')
         self.assertNotContains(response, 'test_child2')

@@ -5,6 +5,7 @@ from numbers import Number
 from datetime import datetime, date, time
 from decimal import Decimal
 
+from functools import partial
 from django.http import HttpResponse
 from django.db.models import Model, Manager
 from django.utils.encoding import smart_unicode
@@ -46,6 +47,7 @@ class SmartTransformer(BaseTransformer):
        * emit_exclude -- Exclude some fields
        * emit_include -- Include some fields
        * emit_related -- Options for relations.
+       * emit_simple -- Simple options for simplificator
 
        Example:
 
@@ -60,6 +62,7 @@ class SmartTransformer(BaseTransformer):
                                fields = 'username'
                        )
                    )
+                   simplificators = [(HttpError, 'simplify_error'),]
 
 
     """
@@ -73,6 +76,20 @@ class SmartTransformer(BaseTransformer):
                                          include=self.meta_option('emit_include'),
                                          exclude=self.meta_option('emit_exclude'),
                                          related=self.meta_option('emit_related'))
+        self.custom_simplificators = self.meta_option('simplificators') or ()
+
+        self.default_simplificators = ((basestring, self.to_simple_basestring),
+                                       (Number, self.to_simple_number),
+                                       ((datetime, date, time), self.to_simple_dates),
+                                       (collections.MutableMapping, self.to_simple_mutable_maping),
+                                       (collections.Iterable, self.to_simple_iterable),
+                                       (lambda v: v is None or v is True or v is False, self.to_simple_boolean),
+                                       (lambda v: hasattr(v, 'to_simple') and not inspect.isclass(v),
+                                        lambda v, **options: self.to_simple(v.to_simple(self, **options), **options)),
+                                        (Model, self.to_simple_model))
+
+        self.simplification_rules = self.prepare_rules(self.default_simplificators, self.custom_simplificators)
+
 
     def meta_option(self, name):
         """Get option from meta
@@ -91,51 +108,64 @@ class SmartTransformer(BaseTransformer):
 
     def transform(self):
         to_simple = getattr(self.resource, 'to_simple', lambda content, data, transformer: data)
-
         return to_simple(self.value, self.to_simple(self.value, **self.options), self)
+
+    def to_simple_basestring(self, value, **options):
+        """(string, unicode)"""
+        return smart_unicode(value)
+
+    def to_simple_number(self, value, **options):
+        """(int, long, float, real, complex, decimal)"""
+        return float(str(value)) if isinstance(value, Decimal) else value
+
+    def to_simple_dates(self, value, **options):
+        """(datetime, data, time)"""
+        return self.to_simple_datetime(value)
+
+    def to_simple_mutable_maping(self, value, **options):
+        """(dict, ordereddict, mutable mapping)"""
+        return dict((k, self.to_simple(v, **options)) for k, v in value.items())
+
+    def to_simple_iterable(self, value, **options):
+        """(tuple, list, set, iterators)"""
+        return [self.to_simple(o, **options) for o in value]
+
+    def to_simple_boolean(self, value, **options):
+        """(None, True, False)"""
+        return value
+
+    def prepare_rules(self, default_simplificators, custom_simplificators):
+        """Merge simplificators
+
+        """
+        rules = []
+        for check_rule, simplificator in tuple(custom_simplificators) + default_simplificators:
+
+            if isinstance(check_rule, type(lambda: None)) and check_rule.__name__ == '<lambda>':
+                rules.append((check_rule, simplificator))
+
+            else:
+
+                def make_rule(check_rule):
+                    def func(value):
+                        return isinstance(value, check_rule)
+                    return func
+
+                rules.append((make_rule(check_rule), simplificator))
+
+        return rules
+
+
 
     def to_simple(self, value, **options):  # nolint
         " Simplify object. "
 
-        # (string, unicode)
-        if isinstance(value, basestring):
-            return smart_unicode(value)
-
-        # (int, long, float, real, complex, decimal)
-        if isinstance(value, Number):
-            return float(str(value)) if isinstance(value, Decimal) else value
-
-        # (datetime, data, time)
-        if isinstance(value, (datetime, date, time)):
-            return self.to_simple_datetime(value)
-
-        # (dict, ordereddict, mutable mapping)
-        if isinstance(value, collections.MutableMapping):
-            return dict(
-                (k, self.to_simple(v, **options)) for k, v in value.items())
-
-        # (tuple, list, set, iterators)
-        if isinstance(value, collections.Iterable):
-            return [self.to_simple(o, **options) for o in value]
-
-        # (None, True, False)
-        if value is None or value is True or value is False:
-            return value
-
-        # Used for ``Paginator``
-        if hasattr(value, 'to_simple') and not inspect.isclass(value):
-            return self.to_simple(
-                value.to_simple(self),
-                **options
-            )
-
-        if isinstance(value, Model):
-            return self.to_simple_model(value, **options)
-
+        for rule, action in self.simplification_rules:
+            if rule(value):
+                return action(value, **options)
         return str(value)
 
-    @staticmethod
-    def to_simple_datetime(value):
+    def to_simple_datetime(self, value, **options):
         result = value.isoformat()
         if isinstance(value, datetime):
             if value.microsecond:

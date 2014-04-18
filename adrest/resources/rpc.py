@@ -90,6 +90,7 @@ class RPCResource(ResourceView):
         """
 
         if request.method == 'OPTIONS':
+
             return super(RPCResource, self).handle_request(
                 request, **resources)
 
@@ -148,6 +149,8 @@ class AutoJSONRPC(RPCResource):
 
     class Meta:
         url_name = 'autojsonrpc'
+        emitters = JSONEmitter, JSONPEmitter
+
 
     @staticmethod
     def configure_rpc(scheme=None):
@@ -160,6 +163,7 @@ class AutoJSONRPC(RPCResource):
         return object: a result
 
         """
+
         if not method or self.separator not in method:
             raise AssertionError("Wrong method name: {0}".format(method))
 
@@ -179,6 +183,8 @@ class AutoJSONRPC(RPCResource):
         request.method = method.upper()
         request.META['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
         params = payload.pop('params', dict())
+
+        # TODO: fix me
         response = self.api.call(resource_name, request, **params)
 
         if not isinstance(response, SerializedHttpResponse):

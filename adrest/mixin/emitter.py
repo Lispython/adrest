@@ -110,6 +110,9 @@ class EmitterMixin(object):
         :return response: Instance of django.http.Response
 
         """
+        if isinstance(content, HttpResponse):
+            return content
+
         data = self.transform(content, request=request)
 
         # Get emitter for request

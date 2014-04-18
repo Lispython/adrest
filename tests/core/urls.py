@@ -1,5 +1,10 @@
 """ Collect URLS from apps. """
-from django.conf.urls.defaults import include, patterns
+
+try:
+    from django.conf.urls import patterns, include
+except ImportError:
+    from django.conf.urls.defaults import patterns, include
+
 
 from ..main.api import API as main
 from ..main.resources import DummyResource

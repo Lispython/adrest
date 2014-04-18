@@ -7,10 +7,11 @@ from time import mktime
 from django.db.models.base import ModelBase, Model
 from django.template import RequestContext, loader
 from django.utils import simplejson
+from django.http import HttpResponse
 
 from ..utils import UpdatedList
 from .paginator import Paginator
-from .response import SerializedHttpResponse
+from .response import SerializedHttpResponse, DirtyHttpResponse
 from .status import HTTP_200_OK
 
 
@@ -42,10 +43,10 @@ class BaseEmitter(object):
     def __init__(self, resource, request=None, response=None):
         self.resource = resource
         self.request = request
-        self.response = SerializedHttpResponse(
-            response,
-            mimetype=self.media_type,
-            status=HTTP_200_OK)
+
+        # Response without serialized content
+        self.dirty_response = response
+
 
     def emit(self):
         """ Serialize response.
@@ -53,16 +54,28 @@ class BaseEmitter(object):
         :return response: Instance of django.http.Response
 
         """
-        # Skip serialize
-        if not isinstance(self.response, SerializedHttpResponse):
-            return self.response
+        # Response already serialized
+        if isinstance(self.dirty_response, SerializedHttpResponse):
+            return self.dirty_response
 
-        self.response.content = self.serialize(self.response.response)
-        self.response['Content-type'] = self.media_type
-        return self.response
+        if isinstance(self.dirty_response, HttpResponse):
+            return self.dirty_response
 
-    @staticmethod
-    def serialize(content):
+        elif isinstance(self.dirty_response, DirtyHttpResponse):
+            status_code = self.dirty_response.status_code
+            serialized_content = self.serialize(self.dirty_response.content)
+        else:
+            status_code = HTTP_200_OK
+            serialized_content = self.serialize(self.dirty_response)
+
+
+        response = HttpResponse(serialized_content,
+                                content_type=self.media_type,
+                                status=status_code)
+        return response
+
+
+    def serialize(self, content):
         """ Low level serialization.
 
         :return response:
@@ -83,7 +96,7 @@ class NullEmitter(BaseEmitter):
         :return response:
 
         """
-        return self.response
+        return self.dirty_response
 
 
 class TextEmitter(BaseEmitter):
@@ -147,8 +160,13 @@ class XMLEmitter(BaseEmitter):
         :return string: serialized XML
 
         """
+        is_error = False
+
+        if isinstance(self.dirty_response, (HttpResponse, DirtyHttpResponse)):
+            is_error = self.dirty_response.status_code != HTTP_200_OK
+
         return self.xmldoc_tpl % (
-            'true' if not self.response.error else 'false',
+            'true' if not is_error else 'false',
             str(self.resource.api or ''),
             int(mktime(datetime.now().timetuple())),
             self.dump_content(content)
@@ -197,8 +215,6 @@ class XMLEmitter(BaseEmitter):
             yield "</%s>" % tag
 
 
-
-
 class TemplateEmitter(BaseEmitter):
 
     """ Serialize by django templates. """
@@ -210,7 +226,9 @@ class TemplateEmitter(BaseEmitter):
 
         """
 
-        if self.response.error:
+        if (isinstance(self.dirty_response, (HttpResponse, DirtyHttpResponse)) and
+            self.dirty_response.status_code != HTTP_200_OK):
+
             template_name = op.join('api', 'error.%s' % self.format)
         else:
             template_name = (self.resource._meta.emit_template
@@ -301,8 +319,13 @@ class XMLTemplateEmitter(TemplateEmitter):
         :return string:
 
         """
+        is_error = False
+
+        if isinstance(self.dirty_response, (DirtyHttpResponse, HttpResponse)):
+            is_error = self.dirty_response.status_code != HTTP_200_OK
+
         return self.xmldoc_tpl % (
-            'true' if self.response.status_code == HTTP_200_OK else 'false',
+            'true' if not is_error else 'false',
             str(self.resource.api or ''),
             int(mktime(datetime.now().timetuple())),
             super(XMLTemplateEmitter, self).serialize(content)

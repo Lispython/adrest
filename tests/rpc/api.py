@@ -44,6 +44,10 @@ class ChildResource(ResourceView):
         model = 'rpc.child'
 
 
+    def get(self, *args, **kwargs):
+        return super(ChildResource, self).get(*args, **kwargs)
+
+
 class CustomResource(ResourceView):
 
     class Meta:

@@ -51,7 +51,7 @@ settings.configure(
         '--nologcapture',
         '--no-byte-compile',
         #    '--stop', # stop after first failure
-           '--pdb-failures',
+        #   '--pdb-failures',
         #    '--logging-clear-handlers'
         ]
 )

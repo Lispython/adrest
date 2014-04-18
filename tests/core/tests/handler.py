@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import json
 from django.db import models
 from django.views.generic import View
 from django.test import RequestFactory
@@ -65,13 +69,13 @@ class CoreHandlerTest(API.testCase):
         self.assertContains(response, '"name": "John"')
 
 
-        john_pk = response.response['pk']
+        john_pk = json.loads(response.content)['pk']
         response = self.put_resource('pirate', pirate=john_pk, data=dict(
             name='Billy'
         ))
 
         self.assertContains(response, '"name": "Billy"')
-        billy_pk = response.response['pk']
+        billy_pk = json.loads(response.content)['pk']
         self.assertEqual(john_pk, billy_pk)
 
         response = self.delete_resource('pirate', pirate=billy_pk)
@@ -82,9 +86,9 @@ class CoreHandlerTest(API.testCase):
             pirate=[1, 2],
             name='Tom'
         ))
-        self.assertEqual(len(response.response), 2)
+        self.assertEqual(len(json.loads(response.content)), 2)
 
-        for pirate in response.response:
+        for pirate in json.loads(response.content):
             self.assertEqual(pirate['fields']['name'], 'Tom')
             self.assertTrue(pirate['pk'] in [1, 2])
 

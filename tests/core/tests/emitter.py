@@ -49,6 +49,7 @@ class CoreEmitterTest(AdrestTestCase):
                 return SmartTransformer(self, content, request).transform()
 
         resource = Resource()
+
         response = resource.emit(pirates)
         self.assertTrue('HeyHey!' in response.content)
 

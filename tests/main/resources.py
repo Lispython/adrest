@@ -25,6 +25,7 @@ class BookResource(ResourceView):
 
         emit_fields = ['status']
 
+
 class BookPrefixResource(BookResource):
 
     class Meta:
@@ -115,6 +116,8 @@ class CSVResource(ResourceView):
         allowed_methods = 'GET'
 
     def get(self, request, **resources):
-        return HttpResponse('value'.encode("utf-16"), mimetype="text/csv")
+
+        #import ipdb; ipdb.set_trace()
+        return HttpResponse('value'.encode("utf-16"), content_type="text/csv")
 
 # lint_ignore=C

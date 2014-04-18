@@ -111,6 +111,7 @@ class Api(object):
             self.register(MapResource)
 
         if api_rpc:
+
             self.register(AutoJSONRPC, emitters=[
                 emitter.JSONPEmitter, emitter.JSONEmitter
             ])
