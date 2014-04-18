@@ -50,7 +50,8 @@ class CoreEmitterTest(AdrestTestCase):
 
         resource = Resource()
 
-        response = resource.emit(pirates)
+
+        response = resource.emit(resource.transform(pirates))
         self.assertTrue('HeyHey!' in response.content)
 
         class Resource(View, EmitterMixin):
@@ -69,7 +70,7 @@ class CoreEmitterTest(AdrestTestCase):
         resource = Resource()
         pirate = pirates[0]
 
-        response = resource.emit(pirate)
+        response = resource.emit(resource.transform(pirate))
         self.assertTrue('Evil ' + pirate.name in response.content)
 
 

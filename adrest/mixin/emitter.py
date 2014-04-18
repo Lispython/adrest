@@ -113,11 +113,10 @@ class EmitterMixin(object):
         if isinstance(content, HttpResponse):
             return content
 
-        data = self.transform(content, request=request)
 
         # Get emitter for request
         emitter = emitter or self.determine_emitter(request)
-        emitter = emitter(self, request=request, response=data)
+        emitter = emitter(self, request=request, response=content)
 
         # Serialize the response content
         response = emitter.emit()

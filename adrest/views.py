@@ -148,6 +148,9 @@ class ResourceView(
             # Return ``HttpResponse``, raise error or object
             response = self.handle_request(request, **resources)
 
+            # Simplify response objects
+            response = self.transform(response, request=request)
+
             # Serialize and apply emitter by content type
             response = self.emit(response, request=request)
 
@@ -220,7 +223,8 @@ class ResourceView(
         """
 
         if isinstance(e, HttpError):
-            response = DirtyHttpResponse(e.content, status_code=e.status)
+            response = DirtyHttpResponse(self.transform(e.content, request=request),
+                                         status_code=e.status)
             return self.emit(
                 response, request=request, emitter=e.emitter)
 
@@ -232,7 +236,8 @@ class ResourceView(
                 content = e.form.errors
 
             response = DirtyHttpResponse(
-                content, status_code=status.HTTP_400_BAD_REQUEST)
+                self.transform(content, request=request),
+                status_code=status.HTTP_400_BAD_REQUEST)
 
             return self.emit(response, request=request)
 
