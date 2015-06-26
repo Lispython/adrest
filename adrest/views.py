@@ -83,6 +83,9 @@ class ResourceView(
         # Name (By default this set from model or class name)
         name = None
 
+        # Custom relation name for parents
+        parent_relation_name = None
+
         # Save access log if ADRest logging is enabled
         log = True
 
@@ -200,10 +203,11 @@ class ResourceView(
 
         objects = resources.get(self._meta.name)
         if self._meta.model and self._meta.parent._meta.model and objects:
-            pr = resources.get(self._meta.parent._meta.name)
+            relation_field_name = self._meta.parent_relation_name or self._meta.parent._meta.name
+            pr = resources.get(relation_field_name)
             check = all(
                 pr.pk == getattr(
-                    o, "%s_id" % self._meta.parent._meta.name, None)
+                    o, "%s_id" % relation_field_name, None)
                 for o in as_tuple(objects))
 
             if not pr or not check:

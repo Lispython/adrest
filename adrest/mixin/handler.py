@@ -48,6 +48,9 @@ class Meta:
     #: Exclude field's names for automatic a model form
     form_exclude = None
 
+    #: Specify for parent relations name
+    parent_relation_name = None
+
 
 class HandlerMeta(DynamicMixinMeta):
 
