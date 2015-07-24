@@ -13,7 +13,8 @@ class Paginator(object):
     """ Paginate collections. """
 
     def __init__(self, request, resource, response):
-        self.query_dict = dict(request.GET.items())
+        self.query_dict = dict([[k, unicode(v).encode('utf-8')] for k, v in request.GET.items()])
+
         self.path = request.path
 
         try:
